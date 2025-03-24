@@ -1,26 +1,43 @@
 import axios from 'axios';
 
-export const searchUsers = async (params) => {
-  try {
-    let query = '';
-    if (params.username) query += `user:${params.username}`;
-    if (params.location) query += ` location:${params.location}`;
-    if (params.reposMin) query += ` repos:>${params.reposMin}`;
-    if (params.language) query += ` language:${params.language}`;
+const GITHUB_API_URL = 'https://api.github.com';
 
-    const response = await axios.get(
-      `https://api.github.com/search/users?q=${query}&per_page=10`
+export const searchUsers = async ({ username, location, minRepos, language }) => {
+  try {
+    // Build query string with all parameters
+    let query = '';
+    if (username) query += `user:${username}`;
+    if (location) query += ` location:${location}`;
+    if (minRepos) query += ` repos:>${minRepos}`;  // Explicit minRepos parameter
+    if (language) query += ` language:${language}`;
+
+    // Make initial search request
+    const searchResponse = await axios.get(
+      `${GITHUB_API_URL}/search/users?q=${query}&per_page=5`,
+      {
+        headers: {
+          Accept: 'application/vnd.github.v3+json'
+        }
+      }
     );
-    
+
+    // Fetch detailed information for each user
     const usersWithDetails = await Promise.all(
-      response.data.items.map(async (user) => {
-        const userDetails = await axios.get(`https://api.github.com/users/${user.login}`);
-        return userDetails.data;
+      searchResponse.data.items.map(async (user) => {
+        const userResponse = await axios.get(
+          `${GITHUB_API_URL}/users/${user.login}`,
+          {
+            headers: {
+              Accept: 'application/vnd.github.v3+json'
+            }
+          }
+        );
+        return userResponse.data;
       })
     );
-    
+
     return usersWithDetails;
   } catch (error) {
-    throw new Error('No users found matching your criteria');
+    throw new Error('Failed to fetch users. Please try again later.');
   }
 };

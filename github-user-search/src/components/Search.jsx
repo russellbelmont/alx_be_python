@@ -1,15 +1,14 @@
-// src/components/Search.jsx
 import { useState } from 'react';
-import axios from 'axios';
+import { searchUsers } from '../services/githubService';
 
 const Search = () => {
   const [searchParams, setSearchParams] = useState({
     username: '',
     location: '',
-    reposMin: '',
+    minRepos: '',  // Changed from reposMin to minRepos
     language: ''
   });
-  const [searchResults, setSearchResults] = useState([]);
+  const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -18,109 +17,76 @@ const Search = () => {
     setSearchParams(prev => ({ ...prev, [name]: value }));
   };
 
-  const searchUsers = async () => {
-    try {
-      let query = '';
-      if (searchParams.username) query += `user:${searchParams.username}`;
-      if (searchParams.location) query += ` location:${searchParams.location}`;
-      if (searchParams.reposMin) query += ` repos:>${searchParams.reposMin}`;
-      if (searchParams.language) query += ` language:${searchParams.language}`;
-
-      const response = await axios.get(
-        `https://api.github.com/search/users?q=${query}&per_page=10`
-      );
-      
-      // Fetch detailed data for each user
-      const usersWithDetails = await Promise.all(
-        response.data.items.map(async (user) => {
-          const userDetails = await axios.get(`https://api.github.com/users/${user.login}`);
-          return userDetails.data;
-        })
-      );
-      
-      return usersWithDetails;
-    } catch (error) {
-      throw error;
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     
     try {
-      const results = await searchUsers();
-      setSearchResults(results);
+      // Call the service with all search parameters including minRepos
+      const users = await searchUsers({
+        username: searchParams.username,
+        location: searchParams.location,
+        minRepos: searchParams.minRepos,  // Using minRepos here
+        language: searchParams.language
+      });
+      setResults(users);
     } catch (err) {
-      setError('No users found matching your criteria');
-      setSearchResults([]);
+      setError(err.message);
+      setResults([]);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="search-container">
-      <form onSubmit={handleSubmit} className="search-form">
-        <div className="form-group">
-          <label>Username</label>
+    <div className="container">
+      <form onSubmit={handleSubmit}>
+        <div className="search-section">
           <input
             type="text"
             name="username"
             value={searchParams.username}
             onChange={handleChange}
-            placeholder="e.g. octocat"
+            placeholder="Username"
           />
         </div>
 
-        <div className="advanced-fields">
+        <div className="advanced-section">
           <h3>Advanced Search</h3>
-          
-          <div className="form-group">
-            <label>Location</label>
-            <input
-              type="text"
-              name="location"
-              value={searchParams.location}
-              onChange={handleChange}
-              placeholder="e.g. San Francisco"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Minimum Repositories</label>
-            <input
-              type="number"
-              name="reposMin"
-              value={searchParams.reposMin}
-              onChange={handleChange}
-              placeholder="e.g. 10"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Primary Language</label>
-            <input
-              type="text"
-              name="language"
-              value={searchParams.language}
-              onChange={handleChange}
-              placeholder="e.g. JavaScript"
-            />
-          </div>
+          <input
+            type="text"
+            name="location"
+            value={searchParams.location}
+            onChange={handleChange}
+            placeholder="Location"
+          />
+          <input
+            type="number"
+            name="minRepos"  // Changed to minRepos
+            value={searchParams.minRepos}
+            onChange={handleChange}
+            placeholder="Minimum Repositories"
+          />
+          <input
+            type="text"
+            name="language"
+            value={searchParams.language}
+            onChange={handleChange}
+            placeholder="Language"
+          />
         </div>
 
         <button type="submit" disabled={loading}>
-          {loading ? 'Searching...' : 'Search GitHub Users'}
+          {loading ? 'Searching...' : 'Search'}
         </button>
       </form>
 
       {loading && <div className="loading">Loading...</div>}
       {error && <div className="error">{error}</div>}
 
-      <div className="results-container">
-        {searchResults.map((user) => (
+      <div className="results">
+        {results.map(user => (
           <div key={user.id} className="user-card">
             <img src={user.avatar_url} alt={`${user.login}'s avatar`} />
             <div className="user-info">
@@ -129,11 +95,11 @@ const Search = () => {
                   {user.name || user.login}
                 </a>
               </h3>
-              {user.bio && <p className="bio">{user.bio}</p>}
+              {user.bio && <p>{user.bio}</p>}
               <div className="stats">
-                <span>📍 {user.location || 'Unknown'}</span>
-                <span>📦 {user.public_repos} repos</span>
-                <span>👥 {user.followers} followers</span>
+                {user.location && <span>📍 {user.location}</span>}
+                <span>📦 Repos: {user.public_repos}</span>
+                {user.minRepos && <span>✅ Min: {user.minRepos}</span>}
                 {user.language && <span>💻 {user.language}</span>}
               </div>
             </div>
