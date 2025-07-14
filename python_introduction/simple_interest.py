@@ -1,9 +1,7 @@
-# simple_interest.py
-
-# Define variables
-principal = 1000       # $1000
-rate = 0.05            # 5% annual interest
-time = 3               # 3 years
+# Define the variables
+principal = 1000
+rate = 0.05
+time = 3
 
 # Calculate simple interest
 interest = principal * rate * time
